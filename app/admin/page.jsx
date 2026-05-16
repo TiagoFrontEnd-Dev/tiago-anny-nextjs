@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+
 import {
   collection,
   addDoc,
   getDocs,
   deleteDoc,
+  updateDoc,
   doc,
   orderBy,
   query
 } from 'firebase/firestore'
+
 import {
   ref,
   uploadBytes,
@@ -27,8 +30,12 @@ export default function AdminPage() {
   const [text, setText] = useState('')
   const [date, setDate] = useState('')
   const [file, setFile] = useState(null)
+
   const [memories, setMemories] = useState([])
   const [loading, setLoading] = useState(false)
+
+  const [editingId, setEditingId] = useState(null)
+  const [editingMemory, setEditingMemory] = useState(null)
 
   useEffect(() => {
     const role = localStorage.getItem('role')
@@ -57,53 +64,109 @@ export default function AdminPage() {
     setMemories(data)
   }
 
-  async function handleUpload(e) {
+  function resetForm() {
+    setTitle('')
+    setText('')
+    setDate('')
+    setFile(null)
+    setEditingId(null)
+    setEditingMemory(null)
+  }
+
+  function startEdit(memory) {
+    setEditingId(memory.id)
+    setEditingMemory(memory)
+    setTitle(memory.title || '')
+    setText(memory.text || '')
+    setDate(memory.date || '')
+    setFile(null)
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
 
-    if (!file) {
-      alert('Escolha uma foto ou vídeo')
+    if (!title || !text) {
+      alert('Preencha título e texto')
       return
     }
 
     setLoading(true)
 
     try {
-      const filePath = `memories/${Date.now()}-${file.name}`
+      let imageUrl = editingMemory?.image || ''
+      let videoUrl = editingMemory?.video || ''
+      let filePath = editingMemory?.filePath || ''
 
-      const storageRef = ref(storage, filePath)
+      if (file) {
+        if (editingMemory?.filePath) {
+          try {
+            await deleteObject(ref(storage, editingMemory.filePath))
+          } catch (err) {
+            console.log('Arquivo antigo não encontrado:', err)
+          }
+        }
 
-      await uploadBytes(storageRef, file)
+        filePath = `memories/${Date.now()}-${file.name}`
 
-      const fileUrl = await getDownloadURL(storageRef)
+        const storageRef = ref(storage, filePath)
 
-      await addDoc(collection(db, 'memories'), {
-        title,
-        text,
-        date,
-        image: file.type.startsWith('image/') ? fileUrl : '',
-        video: file.type.startsWith('video/') ? fileUrl : '',
-        filePath,
-        createdAt: new Date()
-      })
+        await uploadBytes(storageRef, file)
 
-      setTitle('')
-      setText('')
-      setDate('')
-      setFile(null)
+        const fileUrl = await getDownloadURL(storageRef)
 
-      alert('Memória publicada ❤️')
+        imageUrl = file.type.startsWith('image/') ? fileUrl : ''
+        videoUrl = file.type.startsWith('video/') ? fileUrl : ''
+      }
 
+      if (editingId) {
+        await updateDoc(doc(db, 'memories', editingId), {
+          title,
+          text,
+          date,
+          image: imageUrl,
+          video: videoUrl,
+          filePath,
+          updatedAt: new Date()
+        })
+
+        alert('Memória atualizada ❤️')
+      } else {
+        if (!file) {
+          alert('Escolha uma foto ou vídeo')
+          setLoading(false)
+          return
+        }
+
+        await addDoc(collection(db, 'memories'), {
+          title,
+          text,
+          date,
+          image: imageUrl,
+          video: videoUrl,
+          filePath,
+          createdAt: new Date()
+        })
+
+        alert('Memória publicada ❤️')
+      }
+
+      resetForm()
       loadMemories()
     } catch (err) {
       console.log(err)
-      alert('Erro ao publicar')
+      alert('Erro ao salvar memória')
     }
 
     setLoading(false)
   }
 
   async function handleDelete(memory) {
-    const confirmDelete = confirm('Tem certeza que deseja excluir?')
+    const confirmDelete = confirm('Tem certeza que deseja excluir essa memória?')
 
     if (!confirmDelete) return
 
@@ -111,8 +174,11 @@ export default function AdminPage() {
       await deleteDoc(doc(db, 'memories', memory.id))
 
       if (memory.filePath) {
-        const fileRef = ref(storage, memory.filePath)
-        await deleteObject(fileRef)
+        try {
+          await deleteObject(ref(storage, memory.filePath))
+        } catch (err) {
+          console.log('Arquivo já removido:', err)
+        }
       }
 
       alert('Memória excluída')
@@ -129,17 +195,24 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="admin-page">
+    <div className="admin-page vintage-admin">
       <div className="admin-box">
         <div className="admin-top">
-          <h1>Painel Admin ❤️</h1>
+          <div>
+            <h1>Painel Admin ❤️</h1>
+            <p>adicione, edite e organize as memórias de vocês.</p>
+          </div>
 
           <button onClick={logout}>
             Sair
           </button>
         </div>
 
-        <form onSubmit={handleUpload} className="admin-form">
+        <form onSubmit={handleSubmit} className="admin-form">
+          <h2>
+            {editingId ? 'Editar Memória' : 'Adicionar Memória'}
+          </h2>
+
           <input
             type="file"
             accept="image/*,video/*"
@@ -154,7 +227,7 @@ export default function AdminPage() {
 
           <input
             type="text"
-            placeholder="Título"
+            placeholder="Título da memória"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -166,8 +239,22 @@ export default function AdminPage() {
           />
 
           <button type="submit">
-            {loading ? 'Publicando...' : 'Publicar Memória'}
+            {loading
+              ? 'Salvando...'
+              : editingId
+                ? 'Salvar Alterações'
+                : 'Publicar Memória'}
           </button>
+
+          {editingId && (
+            <button
+              type="button"
+              className="cancel-edit"
+              onClick={resetForm}
+            >
+              Cancelar edição
+            </button>
+          )}
         </form>
 
         <div className="admin-list">
@@ -175,7 +262,9 @@ export default function AdminPage() {
 
           {memories.map((memory) => (
             <div key={memory.id} className="admin-memory">
-              {memory.image && <img src={memory.image} alt={memory.title} />}
+              {memory.image && (
+                <img src={memory.image} alt={memory.title} />
+              )}
 
               {memory.video && (
                 <video src={memory.video} controls />
@@ -184,9 +273,18 @@ export default function AdminPage() {
               <h3>{memory.title}</h3>
               <p>{memory.text}</p>
 
-              <button onClick={() => handleDelete(memory)}>
-                Excluir
-              </button>
+              <div className="admin-actions">
+                <button onClick={() => startEdit(memory)}>
+                  Editar
+                </button>
+
+                <button
+                  className="delete-btn"
+                  onClick={() => handleDelete(memory)}
+                >
+                  Excluir
+                </button>
+              </div>
             </div>
           ))}
         </div>

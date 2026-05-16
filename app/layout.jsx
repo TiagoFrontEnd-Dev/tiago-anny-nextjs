@@ -1,4 +1,5 @@
 import '../styles/globals.css'
+import SpotifyPlayer from '../components/SpotifyPlayer'
 
 export const metadata = {
   title: 'Tiago & Anny',
@@ -10,6 +11,7 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <body>
         {children}
+        <SpotifyPlayer />
       </body>
     </html>
   )
