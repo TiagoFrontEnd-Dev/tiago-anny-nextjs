@@ -13,9 +13,10 @@ import {
 import { db } from '../../lib/firebase'
 
 import Hero from '../../components/Hero'
+import LoveCounter from '../../components/LoveCounter'
+import SecretLetters from '../../components/SecretLetters'
 import Timeline from '../../components/Timeline'
 import LoveButton from '../../components/LoveButton'
-import SecretLetters from '../../components/SecretLetters'
 
 export default function HomePage() {
   const router = useRouter()
@@ -68,6 +69,8 @@ export default function HomePage() {
       )}
 
       <Hero />
+
+      <LoveCounter />
 
       <SecretLetters />
 
