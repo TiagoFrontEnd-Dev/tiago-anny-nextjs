@@ -12,15 +12,19 @@ import LoveButton from '../../components/LoveButton'
 
 export default function HomePage() {
   const router = useRouter()
+
   const [memories, setMemories] = useState([])
+  const [role, setRole] = useState('')
 
   useEffect(() => {
-    const role = localStorage.getItem('role')
+    const savedRole = localStorage.getItem('role')
 
-    if (!role) {
+    if (!savedRole) {
       router.push('/')
       return
     }
+
+    setRole(savedRole)
 
     async function loadMemories() {
       const q = query(
@@ -43,8 +47,19 @@ export default function HomePage() {
 
   return (
     <main className="vintage-page">
+      {role === 'admin' && (
+        <button
+          className="back-admin-button"
+          onClick={() => router.push('/admin')}
+        >
+          ← Voltar ao Painel
+        </button>
+      )}
+
       <Hero />
+
       <Timeline memories={memories} />
+
       <LoveButton />
     </main>
   )

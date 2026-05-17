@@ -49,11 +49,7 @@ export default function AdminPage() {
   }, [router])
 
   async function loadMemories() {
-    const q = query(
-      collection(db, 'memories'),
-      orderBy('createdAt', 'desc')
-    )
-
+    const q = query(collection(db, 'memories'), orderBy('createdAt', 'desc'))
     const snapshot = await getDocs(q)
 
     const data = snapshot.docs.map((doc) => ({
@@ -205,6 +201,20 @@ export default function AdminPage() {
 
           <button onClick={logout}>
             Sair
+          </button>
+        </div>
+
+        <div className="admin-menu">
+          <button onClick={() => router.push('/admin')}>
+            Painel
+          </button>
+
+          <button onClick={() => router.push('/admin/cartas')}>
+            Cartas
+          </button>
+
+          <button onClick={() => router.push('/home')}>
+            Ver Página Principal
           </button>
         </div>
 
