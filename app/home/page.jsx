@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { collection, getDocs, orderBy, query } from 'firebase/firestore'
+
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query
+} from 'firebase/firestore'
 
 import { db } from '../../lib/firebase'
 
 import Hero from '../../components/Hero'
 import Timeline from '../../components/Timeline'
 import LoveButton from '../../components/LoveButton'
+import SecretLetters from '../../components/SecretLetters'
 
 export default function HomePage() {
   const router = useRouter()
@@ -27,19 +34,23 @@ export default function HomePage() {
     setRole(savedRole)
 
     async function loadMemories() {
-      const q = query(
-        collection(db, 'memories'),
-        orderBy('createdAt', 'desc')
-      )
+      try {
+        const q = query(
+          collection(db, 'memories'),
+          orderBy('createdAt', 'desc')
+        )
 
-      const snapshot = await getDocs(q)
+        const snapshot = await getDocs(q)
 
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        }))
 
-      setMemories(data)
+        setMemories(data)
+      } catch (err) {
+        console.log(err)
+      }
     }
 
     loadMemories()
@@ -57,6 +68,8 @@ export default function HomePage() {
       )}
 
       <Hero />
+
+      <SecretLetters />
 
       <Timeline memories={memories} />
 
